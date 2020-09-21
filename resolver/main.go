@@ -13,21 +13,7 @@ import (
 	"github.com/benburkert/dns"
 )
 
-func bindPacketConnToDevice(conn net.PacketConn, device string) error {
-	ptrVal := reflect.ValueOf(conn)
-	val := reflect.Indirect(ptrVal)
-	//next line will get you the net.netFD
-	fdmember := val.FieldByName("fd")
-	val1 := reflect.Indirect(fdmember)
-	val1 = val1.FieldByName("pfd")
-	netFdPtr := val1.FieldByName("sysfd")
-	fd := int(netFdPtr.Int())
-	//fd now has the actual fd for the socket
-	return syscall.SetsockoptString(fd, syscall.SOL_SOCKET,
-		syscall.SO_BINDTODEVICE, device)
-}
-
-func bindConnToDevice(conn net.Conn, device string) error {
+func bindConnToDevice(conn interface{}, device string) error {
 	ptrVal := reflect.ValueOf(conn)
 	val := reflect.Indirect(ptrVal)
 	//next line will get you the net.netFD
@@ -37,8 +23,30 @@ func bindConnToDevice(conn net.Conn, device string) error {
 	netFdPtr := val1.FieldByName("Sysfd")
 	fd := int(netFdPtr.Int())
 	//fd now has the actual fd for the socket
+
 	return syscall.SetsockoptString(fd, syscall.SOL_SOCKET,
 		syscall.SO_BINDTODEVICE, device)
+}
+
+func bindConnToAddr(conn interface{}, bindAddr net.IP, port int) error {
+	ptrVal := reflect.ValueOf(conn)
+	val := reflect.Indirect(ptrVal)
+	//next line will get you the net.netFD
+	fdmember := val.FieldByName("fd")
+	val1 := reflect.Indirect(fdmember)
+	val1 = val1.FieldByName("pfd")
+	netFdPtr := val1.FieldByName("Sysfd")
+	fd := int(netFdPtr.Int())
+	//fd now has the actual fd for the socket
+
+	// if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+	// 	log.Fatal(err)
+	// }
+	//syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+
+	lsa := syscall.SockaddrInet4{Port: port}
+	copy(lsa.Addr[:], bindAddr.To4())
+	return syscall.Bind(fd, &lsa)
 }
 
 type transport struct {
@@ -56,6 +64,21 @@ func (t *transport) DialAddr(ctx context.Context, addr net.Addr) (dns.Conn, erro
 			if err != nil {
 				return nil, err
 			}
+			// ifi, err := net.InterfaceByName(t.ifName)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// addrs, err := ifi.Addrs()
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// if len(addrs) > 0 {
+			// 	fmt.Println(strings.Split(addrs[0].String(), "/")[0])
+			// 	err := bindConnToAddr(conn, net.ParseIP(strings.Split(addrs[0].String(), "/")[0]))
+			// 	if err != nil {
+			// 		return nil, err
+			// 	}
+			// }
 		}
 		return &dns.PacketConn{Conn: conn}, nil
 	}
