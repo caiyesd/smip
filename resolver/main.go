@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"reflect"
@@ -89,8 +88,6 @@ func main() {
 		usage()
 		os.Exit(1)
 	}
-
-	log.Println(flag.Arg(0), server, port)
 
 	client.Transport = &transport{ifName: ifName}
 	query := &dns.Query{
