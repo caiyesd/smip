@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/benburkert/dns"
 )
@@ -102,16 +103,21 @@ func main() {
 			},
 		},
 	}
-
-	msg, err := client.Do(context.Background(), query)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	msg, err := client.Do(ctx, query)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
+		os.Exit(2)
 	}
+	hasAnswer := false
 	for _, answer := range msg.Answers {
 		if dns.TypeA == answer.Record.Type() {
 			a := answer.Record.(*dns.A)
 			fmt.Println(a.A)
+			hasAnswer = true
 		}
+	}
+	if !hasAnswer {
+		os.Exit(3)
 	}
 }
