@@ -18,7 +18,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `smip: smip/0.0.1
+	fmt.Fprintf(os.Stderr, `smip: smip/0.0.2
 Usage: smip [-p port]
 
 Options:
@@ -28,20 +28,49 @@ Options:
 
 func main() {
 	flag.Parse()
+	ch := make(chan int)
+	go tcpSmip()
+	go udpSmip()
+	<-ch
+}
 
+// how to test: curl -s http://127.0.0.1:60080/
+func tcpSmip() {
 	listener, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		log.Fatalln("failed to listen at", fmt.Sprintf("0.0.0.0:%d, %s", port, err))
 		return
 	}
 
-	log.Println("start listening at", listener.Addr().String())
+	log.Println("start listening at tcp port", listener.Addr().String())
 	for {
 		if conn, err := listener.Accept(); err == nil {
 			addr := conn.RemoteAddr().String()
-			log.Println(addr)
-			conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s\n", len([]byte(addr)), addr)))
+			log.Println("tcp", addr)
+			conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s\n", len([]byte(addr))+1, addr)))
 			conn.Close()
 		}
 	}
+}
+
+
+// how to test: echo | nc -w 1 -u 127.0.0.1 60080 | tail -n 1
+func udpSmip() {
+	listener, err := net.ListenPacket("udp4", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		log.Fatalln("failed to listen at", fmt.Sprintf("0.0.0.0:%d, %s", port, err))
+		return
+	}
+	log.Println("start listening at udp port", fmt.Sprintf("0.0.0.0:%d", port))
+	buffer := make([]byte, 4096)
+
+	for {
+		_, addr, err := listener.ReadFrom(buffer)
+		if err != nil {
+			continue
+		}
+		log.Println("udp", addr.String())
+		listener.WriteTo([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s\n", len([]byte(addr.String()))+1, addr.String())), addr)
+	}
+
 }
