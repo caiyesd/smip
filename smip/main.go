@@ -34,7 +34,6 @@ func main() {
 	<-ch
 }
 
-// how to test: curl -s http://127.0.0.1:60080/
 func tcpSmip() {
 	listener, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
@@ -47,14 +46,12 @@ func tcpSmip() {
 		if conn, err := listener.Accept(); err == nil {
 			addr := conn.RemoteAddr().String()
 			log.Println("tcp", addr)
-			conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s\n", len([]byte(addr))+1, addr)))
+			conn.Write([]byte(fmt.Sprintf("%s\n", addr)))
 			conn.Close()
 		}
 	}
 }
 
-
-// how to test: echo | nc -w 1 -u 127.0.0.1 60080 | tail -n 1
 func udpSmip() {
 	listener, err := net.ListenPacket("udp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
@@ -70,7 +67,7 @@ func udpSmip() {
 			continue
 		}
 		log.Println("udp", addr.String())
-		listener.WriteTo([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s\n", len([]byte(addr.String()))+1, addr.String())), addr)
+		listener.WriteTo([]byte(fmt.Sprintf("%s\n", addr.String())), addr)
 	}
 
 }
